@@ -1,78 +1,84 @@
-in_dataset_dir<-'UCI HAR Dataset/train/X_train.txt’
-X_test_dataset_dir<-'UCI HAR Dataset/test/X_test.txt’
-filesPath<-'UCI HAR Dataset'
-
-X_train_dataset <- read.table(file.path(filesPath, "train", "X_train.txt"))
-X_test_dataset <- read.table(file.path(filesPath, "test", "X_test.txt"))
-
-
-#MERGE TRAIN AND TEST DATA INTO SINGLE DATA SET
-X_data <- rbind(X_train_dataset, X_test_dataset)
-
-#GET THE FEATURES, I.E. LIST OF ATTRIBUTES FOR EACH ROW IN TH ETABLE
-
-Features <- read.table(file.path(filesPath, "features.txt”))
-#set the feature num and name in the table
-setnames(Features, names(Features), c("featureNum", "featureName”))
-#use the feature list as the column headings in the data table
-
-colnames(X_data) <- Features$featureName
-
-#$$$$$$$$$$$$$$$$$$$
-NOW GET THE SUBJECT FOR TRAIN AND TEST I.E. THE ID OF THE PEOPLE DOING THE STUDY
-subject_train <- read.table("./UCI HAR Dataset/train/subject_train.txt”)
-subject_test <- read.table("./UCI HAR Dataset/test/subject_test.txt")
+#1
+filesPath <- "/Users/pmitchell/Documents/R_Project/dataCLEANING/UCI HAR Dataset"
+# Read subject files
+subjectTrain <- tbl_df(read.table(file.path(filesPath, "train", "subject_train.txt")))
+subjectTest  <- tbl_df(read.table(file.path(filesPath, "test" , "subject_test.txt" )))
+# subjects are the id' of indiviuals
 
 
-#AND MERGE ALL THE SUBJECTS IDs so we have a list of all the subjects or users in the study
-subject_data <- rbind(subject_train, subject_test)
-setnames(subject_data,"V1", "subject")
+# Read activity files
+activityTrain <- tbl_df(read.table(file.path(filesPath, "train", "y_train.txt")))
+activityTest  <- tbl_df(read.table(file.path(filesPath, "test" , "y_test.txt" )))
 
-#NOW GET THE ACTIVITY LABELS I.E. WHAT THE SUBJECT WAS DOING set the column names to activity number and name
-setnames(activities, names(activities), c("activityNum","activityName"))
-#Column BIND ALL THE SUBJECT ID’S AND ACTIVITIES INTO ONE DATA SET , show which user did what activity
-ACTIVITY_train <- read.table("./UCI HAR Dataset/train/y_train.txt”)
+#activityTest contains all the activity types like walking etc =1
 
-ACTIVITY_test <- read.table("./UCI HAR Dataset/test/y_test.txt”)
+#Read data files.
+dataTrain <- tbl_df(read.table(file.path(filesPath, "train", "X_train.txt" )))
+dataTest  <- tbl_df(read.table(file.path(filesPath, "test" , "X_test.txt" )))
 
-ALL_ACTIVITY  <- rbind(ACTIVITY_train, ACTIVITY_test )
-setnames(ALL_ACTIVITY, "V1", "activityNum")
+allSubjectData <- rbind(subjectTrain, subjectTest)
+setNames(allSubjectData, "subject")
+allActivityData<- rbind(activityTrain, activityTest)
+setNames(allActivityData, "Activity")
 
-colnames(X_data) <- Features$featureName
+#combine the DATA training and test files
+allData <- rbind(dataTrain, dataTest)
 
-activityLabels<- read.table(file.path(filesPath, "activity_labels.txt"))
-setnames(activityLabels, names(activityLabels), c("activityNum","activityName"))
+# name variables according to feature e.g.(V1 = "tBodyAcc-mean()-X")
+Features <- tbl_df(read.table(file.path(filesPath, "features.txt")))
+setNames(Features, c("featureNum", "featureName"))
 
-subject_and_activities <- cbind(subject_data, ALL_ACTIVITY )
-#NOW combine the SUBJECT OR USERS AND THEIR ACTIVITY AND THE DATA ASSOCIATED WITH EACH USER
-ALL_DATA <- cbind(subject_and_activities, X_data)
+
+
+colnames(allData) <- Features$V2
+
+#column names for activity labels
+activityLabels<- tbl_df(read.table(file.path(filesPath, "activity_labels.txt")))
+setNames(activityLabels, names(activityLabels))
+
+# Merge columns
+alldataSubjAct<- cbind(allSubjectData, allActivityData)
+allData <- cbind(alldataSubjAct, allData)
+
+colnames(allData)[1]<-"subject" 
+colnames(allData)[2]<-"activityNum" 
+
+
+
 #2
-#EXTRACT THE COLUMN NAMES WITH MEAN OR STD IN THE TITLE LISTS A SINGLE COLUMN OF FEATURES WITH MEAN OR STD IN THE NAMES
-mean_and_stand_dev_features <- grep("mean\\(\\)|std\\(\\)",dataFeatures$featureName,value=TRUE)
-mean_and_stand_dev_features <- union(c("subject","activityNum"), mean_and_stand_dev_features)
-ALL_DATA<- subset(ALL_DATA,select=mean_and_stand_dev_features)
 
-#SELECTS A SUBSET OF THE whole data based on the contents of mean_and_stand_dev_features2
-ALL_DATA<- subset(ALL_DATA,select= mean_and_stand_dev_features) 
+Features_MeanStd <- grep("mean\\(\\)|std\\(\\)",Features$V2,value=TRUE) #var name
+
+# Taking only measurements for the mean and standard deviation and add "subject","activityNum"
 
 
-#3
+Features_MeanStd <- union(c("subject","activityNum"), Features_MeanStd)
+#allData<- subset(allData,select=Features_MeanStd) 
 
-#CHANGES THE ACTIVITYNAME COLUMN TO A MORE SPECIFIC NAME SUCH AS 'WALKING'
-ALL_DATA <- merge(activityLabels, ALL_DATA , by="activityNum", all.x=TRUE)
+allData<- subset(allData,select=Features_MeanStd,)
 
+#3.
 
-4
-#SUBSTITUTE 
-names(dataTable)<-gsub("std()", "SD", names(dataTable))
-names(dataTable)<-gsub("mean()", "MEAN", names(dataTable))
-names(dataTable)<-gsub("^t", "time", names(dataTable))
-names(dataTable)<-gsub("^f", "frequency", names(dataTable))
-names(dataTable)<-gsub("Acc", "Accelerometer", names(dataTable))
-names(dataTable)<-gsub("Gyro", "Gyroscope", names(dataTable))
-names(dataTable)<-gsub("Mag", "Magnitude", names(dataTable))
-names(dataTable)<-gsub("BodyBody", "Body", names(dataTable))
-names(dataTable)<-gsub(“Gravity", "Body", names(dataTable))
+colnames(activityLabels)[1]<-"activityNum" 
+colnames(activityLabels)[2]<-"activity" 
+
+allData <- merge(activityLabels, allData , by="activityNum", all.x=TRUE)
+allData$activityName <- as.character(allData$activity)
+
+#4.
+
+names(allData)<-gsub("std()", "SD", names(allData))
+names(allData)<-gsub("mean()", "MEAN", names(allData))
+names(allData)<-gsub("^t", "time", names(allData))
+names(allData)<-gsub("^f", "frequency", names(allData))
+names(allData)<-gsub("Acc", "Accelerometer", names(allData))
+names(allData)<-gsub("Gyro", "Gyroscope", names(allData))
+names(allData)<-gsub("Mag", "Magnitude", names(allData))
+names(allData)<-gsub("BodyBody", "Body", names(allData))
+names(allData)<-gsub("ÒGravity", "Body", names(allData))
+
 #5
-finalData_NoActivityType =  dataTable[,names(dataTable) != 'activityName’]
-tidyData = aggregate(finalData_NoActivityType[,names(finalData_NoActivityType) != c('activityNum','subject')],by=list(activityId=finalData_NoActivityType$activityNum,subject = finalDataNoActivityType$subject),mean)
+finalData_NoActivityType =  allData[,names(allData) != 'activity']
+  
+tidyData = aggregate(finalData_NoActivityType[,names(finalData_NoActivityType) != c('activityNum','subject')],by=list(activity=finalData_NoActivityType$activityNum,subject = finalData_NoActivityType$subject),mean)
+write.table(tidyData, "TidyData.txt", row.name=FALSE)
